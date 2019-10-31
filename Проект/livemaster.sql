@@ -18,7 +18,6 @@ CREATE TABLE sellers (
   is_user BIGINT UNSIGNED NOT NULL,
   FOREIGN KEY (is_user) REFERENCES users(id)
   ON UPDATE CASCADE
-
   , -- чтобы быть продавцом, нужно быть юзером. Но можно удалить магазин и остаться юзером
   PRIMARY KEY (id, is_user)); -- у одного юзера может быть 2 продавца-магазина. У юзера свой id, у продавца ставится свой id. Поэтому ключом идет пара
   
@@ -56,48 +55,48 @@ CREATE TABLE users_subscribed_tos(  -- Можно подписаться на м
   
 DROP TABLE IF EXISTS products_categories;
 CREATE TABLE products_categories (
- `category_id` SERIAL,
+ category_id SERIAL,
  category_name VARCHAR(45),
-PRIMARY KEY (`category_id`));
+PRIMARY KEY (category_id));
 
 DROP TABLE IF EXISTS products;
 CREATE TABLE products ( -- каталог общий для всех, под товаром подписывают магазин продавца
-  `id` SERIAL,
+  id SERIAL,
   seller_id BIGINT UNSIGNED NOT NULL,
-  `product_name` VARCHAR(45) NOT NULL,
-  `price` DECIMAL(13,2) NOT NULL,
-  `category` BIGINT UNSIGNED NOT NULL,
-  `customisation` ENUM('no', 'yes') NOT NULL, -- некоторые изделия мастера могут по запросу перекрасить/изготовить такое же, но бордовое и т.п.
-  `shipped` ENUM('no', 'yes') NOT NULL,
+  product_name VARCHAR(45) NOT NULL,
+  price DECIMAL(13,2) NOT NULL,
+  category BIGINT UNSIGNED NOT NULL,
+  customisation ENUM('no', 'yes') NOT NULL, -- некоторые изделия мастера могут по запросу перекрасить/изготовить такое же, но бордовое и т.п.
+  shipped ENUM('no', 'yes') NOT NULL,
   FOREIGN KEY (seller_id) REFERENCES sellers(id)
   ON UPDATE CASCADE
   ,
   FOREIGN KEY (category) REFERENCES products_categories(category_id)
   ,
-  PRIMARY KEY (`id`));
+  PRIMARY KEY (id));
   
 
 DROP TABLE IF EXISTS seasonal_promotions;
-CREATE TABLE `seasonal_promotions` (
-  `id` SERIAL,
-  `season` ENUM('winter', 'spring', 'summer', 'autumn') NOT NULL,
-  `starts` DATETIME NOT NULL,
-  `ends` DATETIME NOT NULL,
+CREATE TABLE seasonal_promotions (
+  id SERIAL,
+  season ENUM('winter', 'spring', 'summer', 'autumn') NOT NULL,
+  starts DATETIME NOT NULL,
+  ends DATETIME NOT NULL,
   is_promoted BIGINT UNSIGNED NOT NULL, -- продвигаемая категория, например зимой - шарфы. Товары по одному не продвигаются на сайте
   FOREIGN KEY (is_promoted) REFERENCES products_categories(category_id) 
     	ON UPDATE CASCADE 
         ,
-  PRIMARY KEY (`id`));
+  PRIMARY KEY (id));
 
 
 CREATE TABLE `order` (
-`id` SERIAL,
-`ordered_products` JSON NOT NULL,
-`ship_to` BIGINT UNSIGNED NOT NULL,
-`shipped_by` BIGINT UNSIGNED NOT NULL,
+id SERIAL,
+-- ordered_products JSON NOT NULL,
+ship_to BIGINT UNSIGNED NOT NULL,
+shipped_by BIGINT UNSIGNED NOT NULL,
 -- ship_to_address VARCHAR(255) NOT NULL, -- сделать бы дефолт = юзер форен ки, иначе можно ввести
-`payment_method` ENUM('credit_card', 'paypal', 'cash') NOT NULL,
-`paid` ENUM('no', 'yes') NOT NULL,
+payment_method ENUM('credit_card', 'paypal', 'cash') NOT NULL,
+paid ENUM('no', 'yes') NOT NULL,
 FOREIGN KEY (ship_to) REFERENCES users(id)
 	ON DELETE RESTRICT
 	, -- если юзер удалится, его история заказов все равно сохранится
@@ -182,7 +181,25 @@ INSERT INTO `users` (`username`, `email`, `is_seller`) VALUES ('black', 'ivansus
 ('tamofa', 'faranfaf@mail.ru', 'yes'),
 ('faonfapfdsg', 'agnisfatuum@gmail.com', 'yes'),
 ('memenotmoir', 'moris@dk.com', 'yes'),
-('hugepernton', 'hugepentona@mail.ru', 'yes');
+('hugepernton', 'hugepentona@mail.ru', 'yes'),
+('gdsongds', 'gdsongds@mail.ru', 'no'),
+('cutara', 'tamataa@gmail.com', 'no'),
+('soerenv', 'soerenv@mt.dk', 'no'),
+('hellora', 'helloitsme@gmail.com', 'no'),
+('telemorta', 'telenoragaov@gmail.com', 'no'),
+('martahapavolva', 'pavlova@mail.ru', 'no'),
+('ginoraa', 'egv.kisileva@mail.ru', 'no'),
+('fadsje', 'wegsdghas@mail.ru', 'no'),
+('wetedgfds', 'pomweg@gmail.com', 'no'),
+('polina98', 'polina98a@mail.ru', 'no'),
+('fsgsd', 'ewfdsg@mgmail.com', 'no'),
+('sgdsd', 'gsdgs@gmail.com', 'no'),
+('tamwgsata', 'teyhegs@gmail.com', 'no'),
+('sdgsdt', 'hgdftefs@hotmail.ru', 'no'),
+('w54hdfg', '324tewfd@hotmail.ru', 'no'),
+('42523fsdg', 'sgsdfh34@gmail.com', 'no'),
+('hfdsgwe', 'hdfhs3@mail.ru', 'no'),
+('gfs3t223', 'fsgs23t@mail.ru', 'no');
 
 INSERT INTO `sellers` (`is_user`)
 SELECT id FROM users
@@ -218,7 +235,6 @@ UPDATE `sellers` SET `shop_name` = 'Pink shoes', `contact_address` = 'Minks' WHE
 UPDATE `sellers` SET `shop_name` = 'Alice in Wonderland', `contact_address` = 'Kishinev' WHERE (`id` = '28') and (`is_user` = '43');
 UPDATE `sellers` SET `shop_name` = 'Best Shop Ever', `contact_address` = 'Moscow, Pokrovskaya Street 4' WHERE (`id` = '29') and (`is_user` = '44');
 UPDATE `sellers` SET `shop_name` = 'The Bestest Shop Ever', `contact_address` = 'Moscow, Pokrovskaya Street 5' WHERE (`id` = '30') and (`is_user` = '45');
-
 
 
 INSERT INTO `products_categories` (`category_name`) VALUES ('jeans and trousers'),
@@ -289,7 +305,11 @@ INSERT INTO `products` (`seller_id`, `product_name`, `price`, `category`, `custo
 ('29', 'Umbrella with cat ears', '1200', '5', 'no', 'yes'),
 ('29', 'Umbrella with dog ears', '1250', '5', 'no', 'yes'),
 ('29', 'Bag with kitten patterned side', '1300', '5', 'no', 'no'),
-('30', 'Beach bag GLAMOUR', '2000', '5', 'no', 'yes');
+('30', 'bag PINK SIZE', '2500', '5', 'no', 'yes'),
+('29', 'Kitten sides', '2000', '5', 'no', 'no'),
+('30', 'Beach bag SUN', '2100', '5', 'no', 'yes'),
+('29', 'Bag Golden Ret', '1090', '5', 'no', 'no'),
+('30', 'Bag Kiss', '2000', '5', 'no', 'yes');
 
 INSERT INTO contests (`starts`, `finishes`, `prize`) VALUES ('2019-09-01 00:00:00', '2019-12-01 00:00:00', '4'),
 ('2019-11-20 12:00:00', '2020-01-01 00:00:00', '58'), -- приз конкурса - это товар с id 43
@@ -353,7 +373,19 @@ UPDATE users_profiles SET real_name = 'Karina Usifova', gender = 'female', inter
 UPDATE users_profiles SET birthday = '1998-12-04', photo_id = '15', hometown = 'Krasnodar', shipping_address = 'Krasnodar, Sochinskaya Street 84, kv. 4, 334987', telephone_number ='+79190688332', interests = 'beach, sun, pretty things' WHERE (`user_id` = '43');
 UPDATE users_profiles SET real_name = 'Jamilya Tsarinova', gender = 'female', birthday = '1934-09-07', photo_id = '16', hometown = 'Adler', shipping_address = 'Krivoy Rog, Tsentarnaya 8', interests = 'knitting, crochye' WHERE (`user_id` = '44');
 UPDATE users_profiles SET real_name = 'Madam Smirnoff', gender = 'female' WHERE (`user_id` = '45');
-
+UPDATE users_profiles SET real_name = 'Alex Buev', gender = 'male', birthday = '1981-10-18', photo_id = '17' WHERE (`user_id` = '46');
+UPDATE users_profiles SET real_name = 'Peter Orlov', gender = 'male', birthday = '1973-11-03', photo_id = '18', hometown = 'Ylianovsk', telephone_number ='+79471649557', interests = 'crafts, sewing'  WHERE (`user_id` = '47');
+UPDATE users_profiles SET real_name = 'Max Orlov', gender = 'male', photo_id = '19', hometown = 'Kerch', shipping_address = 'Moscow, ul Wgdfkpova 4, kv. 59, 985467', telephone_number ='+79196689537', interests = 'sewing'  WHERE (`user_id` = '48');
+UPDATE users_profiles SET real_name = 'Tamara Snow', gender = 'female', birthday = '1977-10-03', photo_id = '20', telephone_number ='+70471789535', interests = 'jewellry, wood carving'  WHERE (`user_id` = '50');
+UPDATE users_profiles SET real_name = 'Alexey Kichaev', gender = 'male', birthday = '1986-06-18', hometown = 'Moscow', shipping_address = 'Peterburg, ul. Sentesfdg 45, kv. 78, 478932', telephone_number ='+70071559547' WHERE (`user_id` = '51');
+UPDATE users_profiles SET real_name = 'Maria Subbotina', gender = 'female', photo_id = '21', hometown = 'Gfpdogs', shipping_address = 'Gfpdogs, ul Pogsnd 32, kv. 943, 334987', telephone_number ='+79054675537', interests = 'horses, leaves'  WHERE (`user_id` = '52');
+UPDATE users_profiles SET real_name = 'Daria Krasner', gender = 'female', birthday = '1991-09-29', photo_id = '22', telephone_number ='+79171689543' WHERE (`user_id` = '53');
+UPDATE users_profiles SET real_name = 'Oxxana Kich', gender = 'female', birthday = '1999-07-05', photo_id = '23', telephone_number ='+79571583535' WHERE (`user_id` = '54');
+UPDATE users_profiles SET real_name = 'Orlin', gender = 'female', birthday = '1934-10-18', hometown = 'Kemerov', shipping_address = 'Kemerov, ul Koroleva 43, kv. 543, 334987', telephone_number ='+79171349557', interests = 'crafting'  WHERE (`user_id` = '55');
+UPDATE users_profiles SET real_name = 'Amalia Peters', gender = 'female', birthday = '1956-04-24', photo_id = '24', telephone_number ='+79161686536', interests = 'needlework'  WHERE (`user_id` = '56');
+UPDATE users_profiles SET real_name = 'Natalia Kisileva', gender = 'female', birthday = '1997-05-20', interests = 'knitting, sewing'  WHERE (`user_id` = '58');
+UPDATE users_profiles SET real_name = 'Andrey Savlov', gender = 'male', birthday = '1958-09-21', photo_id = '25', hometown = 'Samara', shipping_address = 'Samara, ul Kirsanova 35, kv. 93, 444987', telephone_number ='+79070089536', interests = 'sewing, needlework, knitting'  WHERE (`user_id` = '59');
+UPDATE users_profiles SET real_name = 'Timur Horaph', gender = 'male', birthday = '1989-10-15', shipping_address = 'Moscow, ul. Pobedya 53, kv. 532, 334987' WHERE (`user_id` = '60');
 
 INSERT INTO `users_subscribed_tos` (`user_id`, `seller_id`) VALUES 
 ('1', '2'),
@@ -371,16 +403,30 @@ INSERT INTO `users_subscribed_tos` (`user_id`, `seller_id`) VALUES
 ('11', '13'),
 ('14', '2'),
 ('12', '5'),
-('17', '6'),
+('17', '16'),
 ('18', '6'),
-('19', '8'),
-('21', '11'),
-('24', '19'),
-('37', '20'),
-('39', '21'),
-('5', '23'),
-('6', '24'),
-('7', '17');
+('19', '11'),
+('21', '12'),
+('24', '22'),
+('37', '29'),
+('50', '12'),
+('55', '15'),
+('46', '16'),
+('57', '17'),
+('60', '29'),
+('45', '13'),
+('37', '2'),
+('12', '12'),
+('17', '6'),
+('36', '6'),
+('37', '8'),
+('37', '9'),
+('50', '13'),
+('51', '2'),
+('55', '25'),
+('55', '26'),
+('55', '6'),
+('55', '8');
 
 INSERT INTO `seasonal_promotions` (`season`, `starts`, `ends`, `is_promoted`) VALUES 
 ('winter', '2020-01-01 00:00:00', '2020-03-01 00:00:00', '1'),
