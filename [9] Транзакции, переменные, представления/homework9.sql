@@ -193,64 +193,23 @@ CREATE TABLE storehouses_products (
 ) COMMENT = 'Запасы на складе';
 
 
-/* Задание 1
-Составьте список пользователей users, которые осуществили хотя бы один заказ orders в интернет магазине.
-*/
-SELECT 
-id, name
-FROM users
-WHERE id IN (SELECT user_id FROM orders);
+-- Задание 1. В базе данных shop и sample присутствуют одни и те же таблицы, учебной базы данных. Переместите запись id = 1 из таблицы shop.users в таблицу sample.users. Используйте транзакции.
+START TRANSACTION;
+INSERT INTO sample.users 
+SELECT *
+	FROM shop.users
+    WHERE users.id = 1
+;
+COMMIT;
 
+-- Задание 2. Создайте представление, которое выводит название name товарной позиции из таблицы products и соответствующее название каталога name из таблицы catalogs.
+CREATE VIEW name_name AS 
+	SELECT 
+		products.name as product,
+        catalogs.name as catalog
+    FROM shop.products
+		JOIN shop.catalogs ON products.catalog_id = catalogs.id
+    ORDER BY catalogs.name;
 
-/* Задание 2
-Выведите список товаров products и разделов catalogs, который соответствует товару.
-*/
-SELECT 
-products.name as 'Название товара',
-catalogs.name as 'Категория каталога'
-FROM products
-	JOIN catalogs
-ON products.catalog_id = catalogs.id; 
+SELECT * FROM name_name;
 
-
-/* Задание 3 (по желанию) 
-Пусть имеется таблица рейсов flights (id, from, to) и таблица городов cities (label, name). Поля from, to и label содержат английские названия городов, поле name — русское. Выведите список рейсов flights с русскими названиями городов.
-*/
-
-DROP TABLE IF EXISTS cities;
-CREATE TABLE cities (
-  id SERIAL PRIMARY KEY,
-  `label` VARCHAR(255),
-  `name` VARCHAR(255)
-) ;
-
-DROP TABLE IF EXISTS flights;
-CREATE TABLE flights (
-  id SERIAL PRIMARY KEY,
-  `from` VARCHAR(255),
-  `to` VARCHAR(255)
-) ;
-
-INSERT INTO flights (`from`, `to`) VALUES
-('Moscow', 'Omsk'),
-('Novgorod', 'Kazan'),
-('Irkutsk', 'Moscow'),
-('Omsk', 'Irkutsk'),
-('Moscow', 'Kazan');
-
-INSERT INTO cities (label, name) VALUES
-('Moscow', 'Москва'),
-('Novgorod', 'Новгород'),
-('Irkutsk', 'Иркутск'),
-('Omsk', 'Омск'),
-('Kazan', 'Казань');
-
-
-SELECT ref1.name, ref2.name
-FROM flights
-INNER JOIN cities AS ref1 on flights.from = ref1.label  
-INNER JOIN cities AS ref2 on flights.to = ref2.label  ;
-
-
-
- 

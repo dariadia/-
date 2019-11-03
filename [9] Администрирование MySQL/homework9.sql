@@ -193,64 +193,13 @@ CREATE TABLE storehouses_products (
 ) COMMENT = 'Запасы на складе';
 
 
-/* Задание 1
-Составьте список пользователей users, которые осуществили хотя бы один заказ orders в интернет магазине.
-*/
-SELECT 
-id, name
-FROM users
-WHERE id IN (SELECT user_id FROM orders);
+-- Задание 1. Создайте двух пользователей которые имеют доступ к базе данных shop. Первому пользователю shop_read должны быть доступны только запросы на чтение данных, второму пользователю shop — любые операции в пределах базы данных shop.
 
 
-/* Задание 2
-Выведите список товаров products и разделов catalogs, который соответствует товару.
-*/
-SELECT 
-products.name as 'Название товара',
-catalogs.name as 'Категория каталога'
-FROM products
-	JOIN catalogs
-ON products.catalog_id = catalogs.id; 
+CREATE USER shop IDENTIFIED WITH sha256_password BY 'pass';
+CREATE USER shop_read IDENTIFIED WITH sha256_password BY 'pass1';
+
+GRANT ALL ON shop.* TO 'shop'@'localhost' IDENTIFIED WITH sha256_password BY 'pass';
+GRANT SELECT ON shop.* TO 'shop_read'@'localhost' IDENTIFIED WITH sha256_password BY 'pass1';
 
 
-/* Задание 3 (по желанию) 
-Пусть имеется таблица рейсов flights (id, from, to) и таблица городов cities (label, name). Поля from, to и label содержат английские названия городов, поле name — русское. Выведите список рейсов flights с русскими названиями городов.
-*/
-
-DROP TABLE IF EXISTS cities;
-CREATE TABLE cities (
-  id SERIAL PRIMARY KEY,
-  `label` VARCHAR(255),
-  `name` VARCHAR(255)
-) ;
-
-DROP TABLE IF EXISTS flights;
-CREATE TABLE flights (
-  id SERIAL PRIMARY KEY,
-  `from` VARCHAR(255),
-  `to` VARCHAR(255)
-) ;
-
-INSERT INTO flights (`from`, `to`) VALUES
-('Moscow', 'Omsk'),
-('Novgorod', 'Kazan'),
-('Irkutsk', 'Moscow'),
-('Omsk', 'Irkutsk'),
-('Moscow', 'Kazan');
-
-INSERT INTO cities (label, name) VALUES
-('Moscow', 'Москва'),
-('Novgorod', 'Новгород'),
-('Irkutsk', 'Иркутск'),
-('Omsk', 'Омск'),
-('Kazan', 'Казань');
-
-
-SELECT ref1.name, ref2.name
-FROM flights
-INNER JOIN cities AS ref1 on flights.from = ref1.label  
-INNER JOIN cities AS ref2 on flights.to = ref2.label  ;
-
-
-
- 
