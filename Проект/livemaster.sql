@@ -144,8 +144,8 @@ FOREIGN KEY (shipped_by) REFERENCES sellers(id)
   `id` SERIAL,
   `starts` DATETIME NOT NULL,
   `finishes` DATETIME NOT NULL,
-  `winner` BIGINT UNSIGNED,
-  `prize` BIGINT UNSIGNED,
+  `winner` BIGINT UNSIGNED, -- id пользователя
+  `prize` BIGINT UNSIGNED, -- какой-то товар с сайта, поле хранит id этого товара
   FOREIGN KEY (winner) REFERENCES users(id) 
     	ON DELETE restrict
 	,
@@ -154,7 +154,7 @@ FOREIGN KEY (shipped_by) REFERENCES sellers(id)
 	,
   PRIMARY KEY (`id`));
   
-  DROP DATABASE IF EXISTS `academy`;
+  DROP DATABASE IF EXISTS `academy`; -- Академия - так называется раздел сайта, на котором публикуют информацию о вебинарах, воркшопах. Здесь же мастера могут публиковать статьи
   CREATE TABLE `academy` (
   `id` SERIAL,
   `activity_type`  ENUM('article', 'vebinar', 'workshop') NOT NULL,
@@ -420,14 +420,15 @@ INSERT INTO contests (`starts`, `finishes`, `prize`) VALUES ('2019-09-01 00:00:0
 UPDATE contests SET `winner` = '32' WHERE (`id` = '4');
 UPDATE contests SET `winner` = '12' WHERE (`id` = '5');
 
-INSERT INTO academy (`activity_type`, `date`, `count`) VALUES ('vebinar', '2019-12-14 12:00:00', '5'),
-('article', '2019-10-23 19:10:31', '300'),
-('article', '2019-11-13 12:10:31', '430'),
-('article', '2019-12-03 19:04:32', '342'),
-('article', '2019-11-23 13:09:00', '123'),
-('workshop', '2019-11-11 19:00:00', '30'),
-('workshop', '2019-10-21 12:15:00', '40'),
-('workshop', '2019-12-04 10:00:00', '3');
+INSERT INTO academy (`activity_type`, `date`, `count`, `author`) VALUES 
+('vebinar', '2019-12-14 12:00:00', '5', '2'),
+('article', '2019-10-23 19:10:31', '300', '1'),
+('article', '2019-11-13 12:10:31', '430', '2'),
+('article', '2019-12-03 19:04:32', '342', '3'),
+('article', '2019-11-23 13:09:00', '123', '6'),
+('workshop', '2019-11-11 19:00:00', '30', '9'),
+('workshop', '2019-10-21 12:15:00', '40', '2'),
+('workshop', '2019-12-04 10:00:00', '3', '9');
 
 INSERT INTO `users_profiles` (`user_id`, `username`)
 SELECT id, username FROM users;
@@ -745,5 +746,186 @@ SELECT shop_name, users.username, body, created_at
     JOIN sellers ON messages.from_user_id = sellers.is_user
     JOIN users ON messages.from_user_id = users.id
   WHERE sellers.id = 17;
+  
+  
+  
+/* Представления, хранимые процедуры и триггеры; */
+
+-- Процедура, выбирающая подписчиков магазина
+DROP PROCEDURE IF EXISTS view_subscribers;
+DELIMITER //
+CREATE PROCEDURE view_subscribers(in sellers_id INT)
+BEGIN
+SELECT users_profiles.username, real_name, 
+    TIMESTAMPDIFF(YEAR, birthday, NOW()) AS age,
+    hometown
+  FROM users_profiles
+	JOIN users ON users_profiles.user_id = users.id
+  WHERE users.id IN
+	( SELECT user_id
+	FROM users_subscribed_tos
+		JOIN sellers ON (users_subscribed_tos.seller_id = sellers.id)
+        WHERE sellers.id = sellers_id)
+;
+END//
+DELIMITER ; 
+
+CALL view_subscribers(2);
+
+-- Процедура приглашет пользователя на мероприятие (это часть на сайте называется Академия)
+	-- если он подписан на продавца, который это организует
+	-- дату не проверяем, рассылка приглашений происходит 1 раз при создании события. Да, те кто подпишется на мастера после рассылки, но до мероприятия в пролете и приглашения не получат. 
+  
+DROP PROCEDURE IF EXISTS activity_invitation;
+DELIMITER //
+CREATE PROCEDURE activity_invitation(IN activity_id INT)
+  BEGIN
+	SELECT users.id
+	FROM users
+		JOIN users_subscribed_tos sub 
+		    ON (users.id = sub.user_id )
+		JOIN sellers
+			ON (sub.seller_id = sellers.id)
+		JOIN academy
+			ON (sellers.id = academy.author)
+	WHERE academy.id = activity_id
+	ORDER BY users.id;
+  END// 
+DELIMITER ; 
+
+CALL activity_invitation(3); -- кого зовем читать статью с id 3 ?
 
 
+-- Триггер для проверки того, что у незавершенного конкурса не указан победитель
+DROP TRIGGER IF EXISTS check_winner_update;
+DELIMITER //
+CREATE TRIGGER check_winner_update BEFORE UPDATE ON contests
+FOR EACH ROW
+BEGIN
+    IF NEW.finishes > NOW() AND NEW.winner IS NOT NULL
+    THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'You cannot add the winner yet!';
+    END IF;
+END//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS check_winner_insert;
+DELIMITER //
+CREATE TRIGGER check_winner_insert BEFORE INSERT ON contests
+FOR EACH ROW
+BEGIN
+    IF NEW.finishes > NOW() AND NEW.winner IS NOT NULL
+    THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'You cannot add the winner yet!';
+    END IF;
+END//
+DELIMITER ;
+
+-- Триггер для проверки того, что дата мероприятия указана в будущем 
+DROP TRIGGER IF EXISTS check_activity_date_insert;
+DELIMITER //
+CREATE TRIGGER check_activity_date_insert BEFORE INSERT ON academy
+FOR EACH ROW
+BEGIN
+    IF NEW.date < NOW() THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'You cannot add an activity with a past date';
+    END IF;
+END//
+DELIMITER ;
+-- INSERT INTO `db_livemaster`.`academy` (`activity_type`, `date`, `count`, `author`) VALUES ('workshop', '2000-12-12 10:00:00', '4', '3'); 
+
+-- Триггер для проверки того, что дата мероприятия указана в будущем, если вдруг кто-то хитрый потом ее поменять решит
+DROP TRIGGER IF EXISTS check_activity_date_update;
+DELIMITER //
+CREATE TRIGGER check_activity_date_update BEFORE UPDATE ON academy
+FOR EACH ROW
+BEGIN
+    IF NEW.date < NOW() THEN
+		 SIGNAL SQLSTATE '45000' 
+         SET MESSAGE_TEXT = 'You cannot update this activity with a past date';
+    END IF;
+END//
+DELIMITER ;
+
+
+-- Представление покажет фотографию пользователя
+CREATE OR REPLACE VIEW view_photos
+AS 
+  SELECT users.id, users.username, photos.photo_name
+  FROM users
+    JOIN users_profiles profiles 
+		ON users.id = profiles.user_id
+	JOIN photos  
+		ON profiles.photo_id = photos.id
+;
+
+SELECT *
+FROM view_photos
+WHERE id = 1;
+  
+-- Представление и функция с ним для расчета коэфицента среднего числа заказов каждого пользователя, то есть заказы пользователя / кол-во всех заказов. Найдем самого транжиру :)
+CREATE OR REPLACE VIEW user_orders
+AS 
+	SELECT ship_to, COUNT(*)
+	FROM orders
+    GROUP BY ship_to;
+    
+SELECT *
+FROM user_orders
+WHERE ship_to = 45;
+
+DROP FUNCTION IF EXISTS avg_orders;
+DELIMITER //
+CREATE FUNCTION avg_orders(user_id INT)
+RETURNS FLOAT READS SQL DATA
+  BEGIN
+    DECLARE total_orders INT;
+    DECLARE user_orders INT;
+
+    SET total_orders = 
+      (SELECT COUNT(*) 
+        FROM orders);
+        
+    SET user_orders = (
+		SELECT COUNT(*)
+		FROM user_orders
+		WHERE ship_to = user_id);
+      
+    RETURN user_orders / total_orders;
+  END// 
+DELIMITER ; 
+
+SELECT TRUNCATE(avg_orders(45), 2);
+
+
+-- Представление и функция с ним для расчета коэфицента среднего числа заказов на каждый магазин мастера
+CREATE OR REPLACE VIEW sold_products
+AS 
+	SELECT shipped_by, COUNT(*)
+	FROM orders
+    GROUP BY shipped_by;
+SELECT *
+FROM sold_products
+WHERE shipped_by = 8;
+DROP FUNCTION IF EXISTS avg_sold_orders;
+DELIMITER //
+CREATE FUNCTION avg_sold_orders(seller_id INT)
+RETURNS FLOAT READS SQL DATA
+  BEGIN
+    DECLARE total_orders INT;
+    DECLARE seller_orders INT;
+    SET total_orders = 
+      (SELECT COUNT(*) 
+        FROM orders);
+    SET seller_orders = (
+		SELECT COUNT(*)
+		FROM sold_products
+		WHERE shipped_by = seller_id);
+    RETURN seller_orders / total_orders;
+  END// 
+DELIMITER ; 
+
+SELECT TRUNCATE(avg_sold_orders(9), 2);
